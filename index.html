@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="StilVR" />
   <meta name="theme-color" content="#0277BD" />
@@ -399,42 +400,27 @@ const S = {
 };
 
 // ══════════════════════════════════════════════
-//  STATE
-// ══════════════════════════════════════════════
-let cfg = S.get('cfg') || null;          // { start, end, duration }
-let appts = S.get('appts') || [];        // [{ id, dt, name }]
-let activeSlot = null;                   // { dt, appt|null }
-let confirmCb = null;
-
-// Week tab state
-const now = new Date();
-let weekOffset = 0;                      // weeks from current
-let selectedDay = toDateStr(now);        // "YYYY-MM-DD"
-
-// Settings modal state
-let sStart = '08:00';
-let sEnd   = '20:00';
-
-// ══════════════════════════════════════════════
-//  INIT
-// ══════════════════════════════════════════════
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(() => {});
-}
-
-if (cfg) {
-  showHome();
-} else {
-  document.getElementById('setup').classList.add('active');
-}
-
-// ══════════════════════════════════════════════
-//  HELPERS
+//  CONSTANTS
 // ══════════════════════════════════════════════
 const DAY_NAMES_FULL  = ['Ponedeljak','Utorak','Sreda','Četvrtak','Petak','Subota','Nedelja'];
 const DAY_NAMES_SHORT = ['Pon','Uto','Sre','Čet','Pet','Sub','Ned'];
 const MONTH_NAMES     = ['Januar','Februar','Mart','April','Maj','Jun','Jul','Avgust','Septembar','Oktobar','Novembar','Decembar'];
 const MONTH_SHORT     = ['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Avg','Sep','Okt','Nov','Dec'];
+
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+let cfg = S.get('cfg') || null;
+let appts = S.get('appts') || [];
+let activeSlot = null;
+let confirmCb = null;
+
+const now = new Date();
+let weekOffset = 0;
+let selectedDay = toDateStr(now);
+
+let sStart = '08:00';
+let sEnd   = '20:00';
 
 function toDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -477,6 +463,19 @@ function mondayOfWeek(offset) {
   d.setDate(d.getDate() - day + 1 + offset * 7);
   d.setHours(0, 0, 0, 0);
   return d;
+}
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+if (cfg) {
+  showHome();
+} else {
+  document.getElementById('setup').classList.add('active');
 }
 
 // ══════════════════════════════════════════════
