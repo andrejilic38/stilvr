@@ -1,0 +1,22 @@
+{
+  "name": "StilVR",
+  "short_name": "StilVR",
+  "description": "Zakazivanje termina",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0f1e",
+  "theme_color": "#0277BD",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192/0277BD/ffffff?text=S",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512/0277BD/ffffff?text=S",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
