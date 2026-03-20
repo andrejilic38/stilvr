@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="StilVR" />
+  <meta name="theme-color" content="#0277BD" />
+  <link rel="manifest" href="manifest.json" />
+  <title>StilVR</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg:       #0a0f1e;
+      --surface:  #111827;
+      --card:     #1a2235;
+      --card2:    #1e2d45;
+      --primary:  #0288D1;
+      --primary2: #0277BD;
+      --text:     #e8f0fe;
+      --text2:    #7a92b4;
+      --border:   #1e3a5f;
+      --red:      #ef4444;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bot: env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body {
+      height: 100%; height: -webkit-fill-available;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+      overscroll-behavior: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #app { display: flex; flex-direction: column; height: 100vh; height: -webkit-fill-available; }
+
+    .screen { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+    .screen.active { display: flex; }
+
+    /* ─── SETUP ─────────────────────────────────────── */
+    #setup {
+      overflow-y: auto;
+      padding: calc(var(--safe-top) + 52px) 28px calc(var(--safe-bot) + 32px);
+    }
+    #setup h1 { font-size: 32px; font-weight: 700; margin-bottom: 52px; }
+
+    .lbl {
+      font-size: 11px; letter-spacing: 1.5px; font-weight: 600;
+      color: var(--primary); margin-bottom: 14px;
+    }
+
+    .time-row { display: flex; gap: 14px; margin-bottom: 40px; }
+    .time-btn {
+      flex: 1; background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 18px 20px; cursor: pointer; text-align: left;
+      position: relative; overflow: hidden;
+    }
+    .time-btn span { display: block; font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+    .time-btn strong { display: block; font-size: 28px; font-weight: 700; color: var(--text); }
+    .time-btn input[type="time"] {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      opacity: 0; cursor: pointer; font-size: 16px;
+    }
+
+    .dur-row { display: flex; align-items: center; gap: 16px; margin-bottom: 52px; }
+    .dur-input {
+      width: 110px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 14px 20px; font-size: 28px; font-weight: 700;
+      color: var(--text); text-align: center; outline: none;
+    }
+    .dur-input:focus { border-color: var(--primary); }
+    .dur-label { font-size: 18px; color: var(--text2); }
+
+    .btn-primary {
+      width: 100%; padding: 18px; background: var(--primary);
+      border: none; border-radius: 16px; color: #fff;
+      font-size: 17px; font-weight: 600; cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn-primary:active { opacity: .8; }
+
+    /* ─── HOME ───────────────────────────────────────── */
+    #home { background: var(--bg); }
+
+    .topbar {
+      background: var(--surface);
+      padding: calc(var(--safe-top) + 14px) 20px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar-row {
+      display: flex; align-items: center;
+      justify-content: space-between; margin-bottom: 12px;
+    }
+    .topbar-title { font-size: 22px; font-weight: 700; }
+    .icon-btn {
+      background: none; border: none; color: var(--text2);
+      font-size: 22px; cursor: pointer; padding: 4px 8px;
+    }
+
+    .tabs { display: flex; gap: 4px; }
+    .tab {
+      flex: 1; padding: 10px 0; background: none; border: none;
+      color: var(--text2); font-size: 14px; font-weight: 500;
+      cursor: pointer; border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    .tab-content { display: none; flex: 1; overflow-y: auto; }
+    .tab-content.active { display: block; }
+
+    /* ─── TODAY TAB ──────────────────────────────────── */
+    .today-header { padding: 20px 20px 8px; }
+    .today-day { font-size: 11px; letter-spacing: 1.5px; font-weight: 600; color: var(--primary); }
+    .today-date { font-size: 24px; font-weight: 700; margin: 2px 0 4px; }
+    .today-sub { font-size: 14px; color: var(--text2); margin-bottom: 12px; }
+    .progress-bar {
+      height: 5px; background: var(--card); border-radius: 3px; overflow: hidden;
+    }
+    .progress-fill { height: 100%; background: var(--primary); border-radius: 3px; transition: width .4s; }
+
+    /* ─── WEEK TAB ───────────────────────────────────── */
+    .week-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 8px 6px; background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .week-nav button {
+      background: none; border: none; color: var(--text2);
+      font-size: 22px; cursor: pointer; padding: 4px 10px;
+    }
+    .week-nav span { font-size: 14px; font-weight: 600; color: var(--text); }
+    .week-days {
+      display: flex; justify-content: space-around;
+      background: var(--surface); padding: 6px 4px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .day-chip {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 8px 6px; border-radius: 14px; cursor: pointer;
+      min-width: 42px; border: none; background: none; transition: background .15s;
+    }
+    .day-chip.selected { background: var(--primary); }
+    .day-chip .d-name { font-size: 11px; font-weight: 500; color: var(--text2); }
+    .day-chip.selected .d-name { color: #fff; }
+    .day-chip .d-num { font-size: 19px; font-weight: 700; color: var(--text); margin: 3px 0; }
+    .day-chip.today .d-num { color: var(--primary); }
+    .day-chip.selected .d-num { color: #fff; }
+    .day-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
+    .day-chip.selected .day-dot { background: rgba(255,255,255,.8); }
+    .day-placeholder { width: 6px; height: 6px; }
+
+    /* ─── SLOT CARDS ─────────────────────────────────── */
+    .slots-list { padding: 8px 0 32px; }
+    .slot-card {
+      display: flex; align-items: center;
+      margin: 4px 16px; padding: 14px 20px;
+      background: var(--card); border-radius: 16px;
+      cursor: pointer; transition: opacity .15s;
+      border: 1px solid transparent;
+    }
+    .slot-card:active { opacity: .7; }
+    .slot-card.booked { background: var(--card2); border-color: var(--border); }
+    .slot-card.past { opacity: .35; }
+    .slot-time {
+      width: 54px; font-size: 18px; font-weight: 700;
+      color: var(--text2); flex-shrink: 0;
+    }
+    .slot-card.booked .slot-time { color: var(--primary); }
+    .slot-divider {
+      width: 2px; height: 28px; background: var(--border);
+      border-radius: 1px; margin: 0 16px; flex-shrink: 0;
+    }
+    .slot-name { flex: 1; font-size: 16px; color: var(--text2); }
+    .slot-card.booked .slot-name { color: var(--text); font-weight: 600; }
+    .slot-icon { font-size: 18px; color: var(--border); }
+    .slot-card.booked .slot-icon { color: var(--primary); }
+
+    /* ─── MODAL ──────────────────────────────────────── */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.6);
+      display: flex; align-items: flex-end; justify-content: center;
+      z-index: 100; opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      width: 100%; max-width: 480px;
+      background: var(--surface); border-radius: 24px 24px 0 0;
+      padding: 0 24px calc(var(--safe-bot) + 24px);
+      transform: translateY(100%); transition: transform .25s cubic-bezier(.4,0,.2,1);
+    }
+    .overlay.open .modal { transform: translateY(0); }
+    .modal-handle {
+      width: 40px; height: 4px; background: var(--border);
+      border-radius: 2px; margin: 12px auto 20px;
+    }
+    .modal-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .modal-sub { font-size: 14px; color: var(--text2); margin-bottom: 24px; }
+    .modal-name {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--card); border-radius: 14px; padding: 16px 18px;
+      margin-bottom: 24px;
+    }
+    .modal-name span { font-size: 22px; font-weight: 700; }
+    .modal-input {
+      width: 100%; padding: 16px 18px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 14px;
+      color: var(--text); font-size: 17px; outline: none; margin-bottom: 24px;
+    }
+    .modal-input:focus { border-color: var(--primary); }
+    .modal-input::placeholder { color: var(--text2); }
+    .modal-actions { display: flex; gap: 12px; }
+    .btn-cancel {
+      flex: 1; padding: 16px; background: var(--card);
+      border: none; border-radius: 14px; color: var(--text2);
+      font-size: 16px; cursor: pointer;
+    }
+    .btn-confirm {
+      flex: 2; padding: 16px; background: var(--primary);
+      border: none; border-radius: 14px; color: #fff;
+      font-size: 16px; font-weight: 600; cursor: pointer;
+    }
+    .btn-delete {
+      flex: 1; padding: 16px; background: rgba(239,68,68,.15);
+      border: none; border-radius: 14px; color: var(--red);
+      font-size: 16px; cursor: pointer;
+    }
+
+    /* ─── CONFIRM DIALOG ─────────────────────────────── */
+    .confirm-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200; opacity: 0; pointer-events: none; transition: opacity .2s;
+      padding: 24px;
+    }
+    .confirm-overlay.open { opacity: 1; pointer-events: all; }
+    .confirm-box {
+      background: var(--surface); border-radius: 20px;
+      padding: 28px 24px; width: 100%; max-width: 360px;
+    }
+    .confirm-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+    .confirm-msg { font-size: 15px; color: var(--text2); line-height: 1.5; margin-bottom: 28px; white-space: pre-line; }
+    .confirm-actions { display: flex; gap: 12px; }
+    .confirm-actions .btn-cancel { flex: 1; }
+    .confirm-actions .btn-delete { flex: 1.5; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ═══ SETUP SCREEN ════════════════════════════════ -->
+  <div id="setup" class="screen active">
+    <h1>Podešavanja</h1>
+
+    <div class="lbl">RADNO VREME</div>
+    <div class="time-row">
+      <label class="time-btn">
+        <span>Početak</span>
+        <input type="time" id="tp-start" value="08:00"
+          oninput="document.getElementById('start-display').textContent=this.value" />
+        <strong id="start-display">08:00</strong>
+      </label>
+      <label class="time-btn">
+        <span>Kraj</span>
+        <input type="time" id="tp-end" value="20:00"
+          oninput="document.getElementById('end-display').textContent=this.value" />
+        <strong id="end-display">20:00</strong>
+      </label>
+    </div>
+
+    <div class="lbl">TRAJANJE TERMINA</div>
+    <div class="dur-row">
+      <input id="dur-input" class="dur-input" type="number" min="5" max="240" value="35" />
+      <span class="dur-label">minuta</span>
+    </div>
+
+    <button class="btn-primary" onclick="saveSetup()">Počni</button>
+  </div>
+
+  <!-- ═══ HOME SCREEN ══════════════════════════════════ -->
+  <div id="home" class="screen">
+    <div class="topbar">
+      <div class="topbar-row">
+        <span class="topbar-title">StilVR</span>
+        <button class="icon-btn" onclick="openSettings()">⚙️</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('today', this)">📅 Danas</button>
+        <button class="tab" onclick="switchTab('week', this)">🗓 Nedelja</button>
+      </div>
+    </div>
+
+    <!-- TODAY -->
+    <div id="tab-today" class="tab-content active">
+      <div class="today-header">
+        <div class="today-day" id="today-dayname"></div>
+        <div class="today-date" id="today-datestr"></div>
+        <div class="today-sub" id="today-sub"></div>
+        <div class="progress-bar"><div class="progress-fill" id="today-progress" style="width:0%"></div></div>
+      </div>
+      <div class="slots-list" id="today-slots"></div>
+    </div>
+
+    <!-- WEEK -->
+    <div id="tab-week" class="tab-content">
+      <div class="week-nav">
+        <button onclick="changeWeek(-1)">&#8249;</button>
+        <span id="week-range"></span>
+        <button onclick="changeWeek(1)">&#8250;</button>
+      </div>
+      <div class="week-days" id="week-days"></div>
+      <div class="slots-list" id="week-slots"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ SLOT MODAL ════════════════════════════════════ -->
+<div class="overlay" id="slot-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-sub" id="modal-sub"></div>
+    <div id="modal-booked-view" style="display:none">
+      <div class="modal-name">
+        <span>👤</span>
+        <span id="modal-client-name"></span>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">Zatvori</button>
+        <button class="btn-delete" onclick="deleteAppointment()">Otkaži termin</button>
+      </div>
+    </div>
+    <div id="modal-free-view" style="display:none">
+      <input class="modal-input" id="modal-name-input" type="text" placeholder="Ime klijenta"
+             autocomplete="off" autocorrect="off" spellcheck="false"
+             onkeydown="if(event.key==='Enter')confirmBook()" />
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">Odustani</button>
+        <button class="btn-confirm" onclick="confirmBook()">Zakaži</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CONFIRM DIALOG ════════════════════════════════ -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-title" id="confirm-title"></div>
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-actions">
+      <button class="btn-cancel" onclick="confirmCancel()">Odustani</button>
+      <button class="btn-delete" onclick="confirmOK()">Obriši i sačuvaj</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SETTINGS MODAL ════════════════════════════════ -->
+<div class="overlay" id="settings-overlay" onclick="closeSettings(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" style="margin-bottom:20px">Podešavanja</div>
+
+    <div class="lbl">RADNO VREME</div>
+    <div class="time-row" style="margin-bottom:32px">
+      <label class="time-btn">
+        <span>Početak</span>
+        <input type="time" id="s-tp-start" value="08:00"
+          oninput="sStart=this.value; document.getElementById('s-start-display').textContent=this.value" />
+        <strong id="s-start-display">08:00</strong>
+      </label>
+      <label class="time-btn">
+        <span>Kraj</span>
+        <input type="time" id="s-tp-end" value="20:00"
+          oninput="sEnd=this.value; document.getElementById('s-end-display').textContent=this.value" />
+        <strong id="s-end-display">20:00</strong>
+      </label>
+    </div>
+
+    <div class="lbl">TRAJANJE TERMINA</div>
+    <div class="dur-row" style="margin-bottom:32px">
+      <input id="s-dur-input" class="dur-input" type="number" min="5" max="240" value="35" />
+      <span class="dur-label">minuta</span>
+    </div>
+
+    <button class="btn-primary" onclick="saveSettings()">Sačuvaj</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  STORAGE
+// ══════════════════════════════════════════════
+const S = {
+  get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
+};
+
+// ══════════════════════════════════════════════
+//  CONSTANTS
+// ══════════════════════════════════════════════
+const DAY_NAMES_FULL  = ['Ponedeljak','Utorak','Sreda','Četvrtak','Petak','Subota','Nedelja'];
+const DAY_NAMES_SHORT = ['Pon','Uto','Sre','Čet','Pet','Sub','Ned'];
+const MONTH_NAMES     = ['Januar','Februar','Mart','April','Maj','Jun','Jul','Avgust','Septembar','Oktobar','Novembar','Decembar'];
+const MONTH_SHORT     = ['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Avg','Sep','Okt','Nov','Dec'];
+
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+let cfg   = S.get('cfg')   || null;
+let appts = S.get('appts') || [];
+let activeSlot = null;
+let confirmCb  = null;
+
+const now = new Date();
+let weekOffset  = 0;
+let selectedDay = toDateStr(now);
+let sStart = '08:00';
+let sEnd   = '20:00';
+
+// ══════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════
+function toDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function fmtTime(h, m) {
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+function fmtDateFull(d) {
+  return `${d.getDate()}. ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}.`;
+}
+
+function parseTime(str) {
+  const [h, m] = str.split(':').map(Number);
+  return { h, m };
+}
+
+function generateSlots() {
+  const slots = [];
+  const { h: sh, m: sm } = parseTime(cfg.start);
+  const { h: eh, m: em } = parseTime(cfg.end);
+  const dur = cfg.duration;
+  let cur = sh * 60 + sm;
+  const end = eh * 60 + em;
+  while (cur < end) {
+    slots.push({ h: Math.floor(cur / 60), m: cur % 60 });
+    cur += dur;
+  }
+  return slots;
+}
+
+function getAppt(dateStr, h, m) {
+  return appts.find(a => a.dt === dateStr && a.h === h && a.m === m) || null;
+}
+
+function mondayOfWeek(offset) {
+  const d = new Date(now);
+  const day = d.getDay() || 7;
+  d.setDate(d.getDate() - day + 1 + offset * 7);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+if (cfg) {
+  showHome();
+}
+
+// ══════════════════════════════════════════════
+//  SETUP
+// ══════════════════════════════════════════════
+function saveSetup() {
+  const dur = parseInt(document.getElementById('dur-input').value);
+  if (!dur || dur < 5 || dur > 240) {
+    alert('Unesi trajanje između 5 i 240 minuta.');
+    return;
+  }
+  cfg = {
+    start:    document.getElementById('tp-start').value || '08:00',
+    end:      document.getElementById('tp-end').value   || '20:00',
+    duration: dur,
+  };
+  S.set('cfg', cfg);
+  showHome();
+}
+
+// ══════════════════════════════════════════════
+//  HOME
+// ══════════════════════════════════════════════
+function showHome() {
+  document.getElementById('setup').classList.remove('active');
+  document.getElementById('home').classList.add('active');
+  renderToday();
+  renderWeek();
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'today') renderToday();
+  else renderWeek();
+}
+
+// ══════════════════════════════════════════════
+//  TODAY TAB
+// ══════════════════════════════════════════════
+function renderToday() {
+  const today   = new Date();
+  const dateStr = toDateStr(today);
+  const slots   = generateSlots();
+  const booked  = slots.filter(s => getAppt(dateStr, s.h, s.m)).length;
+
+  document.getElementById('today-dayname').textContent =
+    DAY_NAMES_FULL[today.getDay() === 0 ? 6 : today.getDay() - 1].toUpperCase();
+  document.getElementById('today-datestr').textContent = fmtDateFull(today);
+  document.getElementById('today-sub').textContent =
+    `${booked} od ${slots.length} termina zauzeto`;
+  document.getElementById('today-progress').style.width =
+    slots.length ? `${(booked / slots.length * 100).toFixed(0)}%` : '0%';
+
+  const container = document.getElementById('today-slots');
+  container.innerHTML = '';
+  slots.forEach(s => container.appendChild(makeSlotCard(dateStr, s, today)));
+}
+
+// ══════════════════════════════════════════════
+//  WEEK TAB
+// ══════════════════════════════════════════════
+function renderWeek() {
+  const monday = mondayOfWeek(weekOffset);
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+  const sunday = days[6];
+
+  document.getElementById('week-range').textContent =
+    `${monday.getDate()}. — ${sunday.getDate()}. ${MONTH_SHORT[monday.getMonth()]} ${monday.getFullYear()}`;
+
+  const daysEl  = document.getElementById('week-days');
+  daysEl.innerHTML = '';
+  const todayStr = toDateStr(now);
+
+  days.forEach((d, i) => {
+    const ds          = toDateStr(d);
+    const bookedCount = appts.filter(a => a.dt === ds).length;
+    const chip        = document.createElement('button');
+    chip.className    = 'day-chip' +
+      (ds === selectedDay ? ' selected' : '') +
+      (ds === todayStr    ? ' today'    : '');
+    chip.innerHTML = `
+      <span class="d-name">${DAY_NAMES_SHORT[i]}</span>
+      <span class="d-num">${d.getDate()}</span>
+      ${bookedCount > 0
+        ? '<div class="day-dot"></div>'
+        : '<div class="day-placeholder"></div>'}
+    `;
+    chip.onclick = () => { selectedDay = ds; renderWeek(); };
+    daysEl.appendChild(chip);
+  });
+
+  const selDate = new Date(selectedDay + 'T00:00:00');
+  const slots   = generateSlots();
+  const container = document.getElementById('week-slots');
+  container.innerHTML = '';
+  slots.forEach(s => container.appendChild(makeSlotCard(selectedDay, s, selDate)));
+}
+
+function changeWeek(delta) {
+  weekOffset += delta;
+  renderWeek();
+}
+
+// ══════════════════════════════════════════════
+//  SLOT CARD
+// ══════════════════════════════════════════════
+function makeSlotCard(dateStr, slot, refDate) {
+  const appt    = getAppt(dateStr, slot.h, slot.m);
+  const slotDate = new Date(refDate);
+  slotDate.setHours(slot.h, slot.m, 0, 0);
+  const isPast  = slotDate < new Date();
+
+  const card = document.createElement('div');
+  card.className = 'slot-card' +
+    (appt   ? ' booked' : '') +
+    (isPast ? ' past'   : '');
+  card.innerHTML = `
+    <div class="slot-time">${fmtTime(slot.h, slot.m)}</div>
+    <div class="slot-divider"></div>
+    <div class="slot-name">${appt ? appt.name : 'Slobodno'}</div>
+    <div class="slot-icon">${appt ? '👤' : '＋'}</div>
+  `;
+  card.onclick = () => openModal(dateStr, slot, appt);
+  return card;
+}
+
+// ══════════════════════════════════════════════
+//  SLOT MODAL
+// ══════════════════════════════════════════════
+function openModal(dateStr, slot, appt) {
+  activeSlot = { dateStr, slot, appt };
+  document.getElementById('modal-title').textContent = fmtTime(slot.h, slot.m);
+
+  if (appt) {
+    document.getElementById('modal-sub').textContent = 'Zakazan termin';
+    document.getElementById('modal-client-name').textContent = appt.name;
+    document.getElementById('modal-booked-view').style.display = 'block';
+    document.getElementById('modal-free-view').style.display   = 'none';
+  } else {
+    document.getElementById('modal-sub').textContent = 'Slobodan termin';
+    document.getElementById('modal-name-input').value = '';
+    document.getElementById('modal-booked-view').style.display = 'none';
+    document.getElementById('modal-free-view').style.display   = 'block';
+    setTimeout(() => document.getElementById('modal-name-input').focus(), 300);
+  }
+  document.getElementById('slot-overlay').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('slot-overlay')) return;
+  document.getElementById('slot-overlay').classList.remove('open');
+  activeSlot = null;
+}
+
+function confirmBook() {
+  const name = document.getElementById('modal-name-input').value.trim();
+  if (!name) return;
+  const { dateStr, slot } = activeSlot;
+  appts.push({ id: Date.now().toString(), dt: dateStr, h: slot.h, m: slot.m, name });
+  S.set('appts', appts);
+  document.getElementById('slot-overlay').classList.remove('open');
+  activeSlot = null;
+  renderToday();
+  renderWeek();
+}
+
+function deleteAppointment() {
+  appts = appts.filter(a => a.id !== activeSlot.appt.id);
+  S.set('appts', appts);
+  document.getElementById('slot-overlay').classList.remove('open');
+  activeSlot = null;
+  renderToday();
+  renderWeek();
+}
+
+// ══════════════════════════════════════════════
+//  SETTINGS MODAL
+// ══════════════════════════════════════════════
+function openSettings() {
+  sStart = cfg.start;
+  sEnd   = cfg.end;
+  document.getElementById('s-tp-start').value         = cfg.start;
+  document.getElementById('s-tp-end').value           = cfg.end;
+  document.getElementById('s-start-display').textContent = cfg.start;
+  document.getElementById('s-end-display').textContent   = cfg.end;
+  document.getElementById('s-dur-input').value        = cfg.duration;
+  document.getElementById('settings-overlay').classList.add('open');
+}
+
+function closeSettings(e) {
+  if (e && e.target !== document.getElementById('settings-overlay')) return;
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+
+function saveSettings() {
+  const dur = parseInt(document.getElementById('s-dur-input').value);
+  if (!dur || dur < 5 || dur > 240) {
+    alert('Unesi trajanje između 5 i 240 minuta.');
+    return;
+  }
+
+  const newStart = document.getElementById('s-tp-start').value || cfg.start;
+  const newEnd   = document.getElementById('s-tp-end').value   || cfg.end;
+  const { h: sh, m: sm } = parseTime(newStart);
+
+  const incompatible = appts.filter(a => {
+    const offset = (a.h * 60 + a.m) - (sh * 60 + sm);
+    return offset < 0 || offset % dur !== 0;
+  });
+
+  const changed = dur !== cfg.duration || newStart !== cfg.start;
+
+  if (incompatible.length > 0 && changed) {
+    const n = incompatible.length;
+    showConfirm(
+      'Pažnja',
+      `${n} ${n === 1 ? 'termin će biti obrisan' : 'termina će biti obrisano'} jer se ne uklapaju u novu raspodelu.\n\nOva akcija je nepovratna.`,
+      () => {
+        appts = appts.filter(a => !incompatible.find(i => i.id === a.id));
+        S.set('appts', appts);
+        applyCfg(newStart, newEnd, dur);
+      }
+    );
+  } else {
+    applyCfg(newStart, newEnd, dur);
+  }
+}
+
+function applyCfg(start, end, duration) {
+  cfg = { start, end, duration };
+  S.set('cfg', cfg);
+  document.getElementById('settings-overlay').classList.remove('open');
+  renderToday();
+  renderWeek();
+}
+
+// ══════════════════════════════════════════════
+//  CONFIRM DIALOG
+// ══════════════════════════════════════════════
+function showConfirm(title, msg, onOK) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent   = msg;
+  confirmCb = onOK;
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+
+function confirmOK() {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  if (confirmCb) { confirmCb(); confirmCb = null; }
+}
+
+function confirmCancel() {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  confirmCb = null;
+}
+</script>
+</body>
+</html>
